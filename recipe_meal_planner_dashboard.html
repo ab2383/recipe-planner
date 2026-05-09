@@ -1,0 +1,1026 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Digital Recipe Book &amp; Meal Planner</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<style>
+/* ── Reset ── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+/* ══════════════════════════════════════
+   LIGHT THEME TOKENS (default)
+   ══════════════════════════════════════ */
+:root, [data-theme="light"] {
+  --bg:            #EEF2F7;
+  --sidebar:       #192231;
+  --sidebar-alt:   #243246;
+  --sidebar-text:  #F8FAFC;
+  --sidebar-hint:  #9FB0C3;
+  --sidebar-count: #D8E1EC;
+  --card:          #FFFFFF;
+  --text:          #18212F;
+  --muted:         #5B677A;
+  --border:        #D8DFE8;
+  --accent:        #3B82F6;
+  --accent-hover:  #2563EB;
+  --success:       #0F9D58;
+  --warning:       #B45309;
+  --danger:        #C62828;
+  --list-hover:    #F1F5FB;
+  --list-active:   #E0ECFF;
+  --plan-bg:       #F7F9FC;
+  --output-bg:     #FAFBFD;
+  --summary-bg:    #FFFFFF;
+  --btn-sec-bg:    #E9EEF5;
+  --btn-sec-hover: #DAE2EF;
+  --btn-dng-bg:    #FDECEA;
+  --input-bg:      #FFFFFF;
+  --radius:        10px;
+  --shadow:        0 1px 3px rgba(0,0,0,.08), 0 1px 2px rgba(0,0,0,.06);
+  --toggle-bg:     #D8DFE8;
+  --toggle-knob:   #FFFFFF;
+  --match-badge:   #EFF6FF;
+  --match-badge-t: #1D4ED8;
+  --match-card-border: #D8DFE8;
+}
+
+/* ══════════════════════════════════════
+   DARK THEME TOKENS
+   ══════════════════════════════════════ */
+[data-theme="dark"] {
+  --bg:            #0F1729;
+  --sidebar:       #0B1120;
+  --sidebar-alt:   #162032;
+  --sidebar-text:  #E2E8F0;
+  --sidebar-hint:  #64748B;
+  --sidebar-count: #94A3B8;
+  --card:          #1A2436;
+  --text:          #E2E8F0;
+  --muted:         #94A3B8;
+  --border:        #2D3B50;
+  --accent:        #60A5FA;
+  --accent-hover:  #3B82F6;
+  --success:       #34D399;
+  --warning:       #FBBF24;
+  --danger:        #F87171;
+  --list-hover:    #1E2D42;
+  --list-active:   #1E3A5F;
+  --plan-bg:       #162032;
+  --output-bg:     #121D2E;
+  --summary-bg:    #1A2436;
+  --btn-sec-bg:    #1E2D42;
+  --btn-sec-hover: #263752;
+  --btn-dng-bg:    #3B1A1A;
+  --input-bg:      #121D2E;
+  --shadow:        0 1px 3px rgba(0,0,0,.30), 0 1px 2px rgba(0,0,0,.22);
+  --toggle-bg:     #3B82F6;
+  --toggle-knob:   #FFFFFF;
+  --match-badge:   #1E3A5F;
+  --match-badge-t: #93C5FD;
+  --match-card-border: #2D3B50;
+}
+
+body {
+  font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  display: flex;
+  height: 100vh;
+  overflow: hidden;
+  transition: background .25s, color .25s;
+}
+
+/* ── Sidebar ── */
+.sidebar {
+  width: 260px; min-width: 260px;
+  background: var(--sidebar);
+  display: flex; flex-direction: column;
+  padding: 22px 0; user-select: none;
+  transition: background .25s;
+}
+.sidebar-header { padding: 0 20px 18px; }
+.sidebar-header h1 { color: var(--sidebar-text); font-size: 1.25rem; }
+.sidebar-header p  { color: var(--sidebar-hint); font-size: .82rem; margin-top: 4px; }
+
+.nav-btn {
+  display: block; width: calc(100% - 32px); margin: 3px 16px;
+  padding: 12px 18px; border: none; border-radius: 8px;
+  background: transparent; color: var(--sidebar-text);
+  font-size: .95rem; text-align: left; cursor: pointer;
+  transition: background .15s;
+}
+.nav-btn:hover { background: var(--sidebar-alt); }
+.nav-btn.active { background: var(--sidebar-alt); font-weight: 600; }
+
+.sidebar-footer {
+  margin-top: auto; padding: 20px;
+  color: var(--sidebar-count); font-size: .82rem;
+}
+.sidebar-footer .count { font-weight: 700; }
+.sidebar-footer .hint  { color: var(--sidebar-hint); font-size: .78rem; margin-top: 4px; }
+
+/* ── Dark mode toggle (sidebar) ── */
+.theme-toggle-row {
+  display: flex; align-items: center; gap: 10px;
+  padding: 0 20px; margin-bottom: 8px;
+}
+.theme-toggle-label {
+  color: var(--sidebar-text); font-size: .85rem; user-select: none;
+}
+.theme-toggle {
+  position: relative; width: 44px; height: 24px;
+  background: var(--toggle-bg); border-radius: 12px;
+  cursor: pointer; border: none; padding: 0;
+  transition: background .25s;
+}
+.theme-toggle::after {
+  content: ''; position: absolute;
+  top: 3px; left: 3px; width: 18px; height: 18px;
+  background: var(--toggle-knob); border-radius: 50%;
+  transition: transform .25s;
+}
+.theme-toggle.on::after { transform: translateX(20px); }
+
+/* ── Main ── */
+.main {
+  flex: 1; display: flex; flex-direction: column;
+  overflow-y: auto; padding: 28px 32px;
+  transition: background .25s;
+}
+.page-header { margin-bottom: 18px; }
+.page-header h2 { font-size: 1.55rem; }
+.page-header p  { color: var(--muted); font-size: .88rem; margin-top: 4px; }
+
+/* ── Cards ── */
+.card {
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 22px 26px;
+  box-shadow: var(--shadow); transition: background .25s, border-color .25s;
+}
+.card + .card { margin-top: 16px; }
+.card-title { font-size: 1.05rem; font-weight: 700; margin-bottom: 2px; }
+.card-desc  { color: var(--muted); font-size: .85rem; margin-bottom: 16px; }
+
+/* ── Buttons ── */
+.btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 10px 20px; border: none; border-radius: 8px;
+  font-size: .9rem; font-weight: 600; cursor: pointer;
+  transition: background .15s, box-shadow .15s;
+}
+.btn-primary   { background: var(--accent); color: #fff; }
+.btn-primary:hover { background: var(--accent-hover); }
+.btn-secondary { background: var(--btn-sec-bg); color: var(--text); }
+.btn-secondary:hover { background: var(--btn-sec-hover); }
+.btn-danger    { background: var(--btn-dng-bg); color: var(--danger); }
+.btn-danger:hover { opacity: .85; }
+.btn-group     { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 18px; }
+
+/* ── Forms ── */
+label.field { display: block; font-weight: 600; font-size: .88rem; margin-bottom: 6px; }
+input.text-input, textarea.text-input {
+  width: 100%; padding: 10px 14px;
+  border: 1px solid var(--border); border-radius: 8px;
+  font-size: .92rem; font-family: inherit;
+  transition: border-color .15s, box-shadow .15s, background .25s;
+  background: var(--input-bg); color: var(--text);
+}
+input.text-input:focus, textarea.text-input:focus {
+  outline: none; border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(59,130,246,.15);
+}
+textarea.text-input { resize: vertical; min-height: 200px; }
+.form-group + .form-group { margin-top: 16px; }
+
+/* ── Summary row ── */
+.summary-row { display: flex; gap: 14px; margin-bottom: 18px; }
+.summary-card {
+  flex: 1; background: var(--summary-bg); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 18px 22px;
+  box-shadow: var(--shadow); transition: background .25s, border-color .25s;
+}
+.summary-card .label { color: var(--muted); font-size: .82rem; }
+.summary-card .value { color: var(--accent); font-size: 1.55rem; font-weight: 700; margin: 8px 0 4px; }
+.summary-card .note  { font-size: .82rem; }
+
+/* ── Split layout ── */
+.split { display: flex; gap: 16px; flex: 1; min-height: 0; }
+.split .panel-left  { width: 300px; min-width: 260px; display: flex; flex-direction: column; }
+.split .panel-right { flex: 1; display: flex; flex-direction: column; }
+
+/* ── Recipe list ── */
+.recipe-list {
+  list-style: none; flex: 1; overflow-y: auto;
+  border: 1px solid var(--border); border-radius: 8px;
+  background: var(--input-bg); transition: background .25s;
+}
+.recipe-list li {
+  padding: 11px 16px; cursor: pointer;
+  border-bottom: 1px solid var(--border);
+  font-size: .92rem; transition: background .1s;
+}
+.recipe-list li:last-child { border-bottom: none; }
+.recipe-list li:hover { background: var(--list-hover); }
+.recipe-list li.active { background: var(--list-active); font-weight: 600; }
+
+/* ── Plan list ── */
+.plan-titles {
+  list-style: none; background: var(--plan-bg);
+  border: 1px solid var(--border); border-radius: 8px;
+  padding: 14px 20px; transition: background .25s;
+}
+.plan-titles li { padding: 6px 0; font-size: 1rem; }
+
+/* ── Meal plan output ── */
+.plan-output {
+  width: 100%; min-height: 280px; padding: 14px 18px;
+  border: 1px solid var(--border); border-radius: 8px;
+  font-family: 'Consolas', 'Courier New', monospace;
+  font-size: .9rem; resize: vertical;
+  background: var(--output-bg); color: var(--text);
+  flex: 1; transition: background .25s, color .25s;
+}
+
+/* ── Warning ── */
+.warning {
+  color: var(--warning); font-weight: 700;
+  font-size: .92rem; margin-bottom: 12px;
+}
+
+/* ══════════════════════════════════════
+   FIND TONIGHT'S DINNER — extra styles
+   ══════════════════════════════════════ */
+.ingredient-tags {
+  display: flex; flex-wrap: wrap; gap: 8px;
+  margin-top: 8px; min-height: 34px;
+}
+.ingredient-tag {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: var(--accent); color: #fff;
+  padding: 5px 12px; border-radius: 16px;
+  font-size: .85rem; font-weight: 600;
+}
+.ingredient-tag .remove-tag {
+  cursor: pointer; font-size: 1rem; line-height: 1;
+  opacity: .8; transition: opacity .15s;
+}
+.ingredient-tag .remove-tag:hover { opacity: 1; }
+
+.match-card {
+  background: var(--card); border: 1px solid var(--match-card-border);
+  border-radius: var(--radius); padding: 18px 22px;
+  box-shadow: var(--shadow); transition: background .25s, border-color .25s;
+  margin-bottom: 12px;
+}
+.match-card-title {
+  font-size: 1.05rem; font-weight: 700; margin-bottom: 6px;
+}
+.match-badges { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
+.match-badge {
+  display: inline-block; padding: 3px 10px;
+  border-radius: 12px; font-size: .78rem; font-weight: 600;
+  background: var(--match-badge); color: var(--match-badge-t);
+}
+.match-badge.full { background: #D1FAE5; color: #065F46; }
+[data-theme="dark"] .match-badge.full { background: #064E3B; color: #6EE7B7; }
+.match-ingredients {
+  list-style: none; padding: 0;
+  font-size: .88rem; color: var(--muted); line-height: 1.7;
+}
+.match-ingredients li.highlight { color: var(--accent); font-weight: 600; }
+.no-results-msg {
+  color: var(--muted); font-size: .95rem;
+  padding: 20px 0; text-align: center;
+}
+
+/* ── Utility ── */
+.hidden { display: none !important; }
+
+/* ── Responsive ── */
+@media (max-width: 860px) {
+  .sidebar { width: 200px; min-width: 200px; }
+  .split { flex-direction: column; }
+  .split .panel-left { width: 100%; min-width: 0; }
+  .summary-row { flex-direction: column; }
+}
+</style>
+</head>
+<body>
+
+<!-- ════════════ Sidebar ════════════ -->
+<aside class="sidebar">
+  <div class="sidebar-header">
+    <h1>Recipe Planner</h1>
+    <p>Meal planning made simple</p>
+  </div>
+
+  <div class="theme-toggle-row">
+    <span class="theme-toggle-label">Dark Mode</span>
+    <button class="theme-toggle" id="themeToggle" aria-label="Toggle dark mode"></button>
+  </div>
+
+  <button class="nav-btn active" data-page="home">Overview</button>
+  <button class="nav-btn"        data-page="add">Add Recipe</button>
+  <button class="nav-btn"        data-page="manage">Edit / Delete</button>
+  <button class="nav-btn"        data-page="plan">Generate Plan</button>
+  <button class="nav-btn"        data-page="find">Find Dinner</button>
+
+  <div class="sidebar-footer">
+    <div class="count" id="sidebarCount">0 recipes saved</div>
+    <div class="hint">Stored in browser localStorage</div>
+  </div>
+</aside>
+
+<!-- ════════════ Content ════════════ -->
+<div class="main" id="mainContent">
+
+  <!-- ──── HOME ──── -->
+  <section id="page-home">
+    <div class="page-header">
+      <h2>Welcome back</h2>
+      <p>Manage recipes, build meal plans, and export a polished PDF &mdash; all inside your browser.</p>
+    </div>
+
+    <div class="summary-row">
+      <div class="summary-card">
+        <div class="label">Recipes Saved</div>
+        <div class="value" id="homeCount">0</div>
+        <div class="note">Stored in localStorage for instant access</div>
+      </div>
+      <div class="summary-card">
+        <div class="label">Storage</div>
+        <div class="value" style="font-size:1.1rem;">localStorage</div>
+        <div class="note">Persists between sessions in this browser</div>
+      </div>
+      <div class="summary-card">
+        <div class="label">Meal Plan Output</div>
+        <div class="value" style="font-size:1.1rem;">PDF Export</div>
+        <div class="note">Printable and easy to share</div>
+      </div>
+    </div>
+
+    <div style="display:flex;gap:16px;flex-wrap:wrap;">
+      <div class="card" style="flex:1;min-width:280px;">
+        <div class="card-title">Quick Start</div>
+        <div class="card-desc">Choose a workflow below to get moving quickly.</div>
+        <button class="btn btn-primary" style="width:100%;margin-bottom:10px;" onclick="navigate('add')">Add a New Recipe</button>
+        <button class="btn btn-secondary" style="width:100%;margin-bottom:10px;" onclick="navigate('manage')">Edit or Delete Recipes</button>
+        <button class="btn btn-secondary" style="width:100%;margin-bottom:10px;" onclick="navigate('plan')">Generate a Meal Plan</button>
+        <button class="btn btn-secondary" style="width:100%;" onclick="navigate('find')">Find Tonight's Dinner</button>
+      </div>
+      <div class="card" style="flex:1;min-width:280px;">
+        <div class="card-title">What this dashboard offers</div>
+        <div class="card-desc">A browser-based recipe planner with a modern layout.</div>
+        <ul style="list-style:disc;padding-left:20px;color:var(--text);font-size:.92rem;line-height:1.8;">
+          <li>Sidebar navigation for quick switching between tasks</li>
+          <li>Card-based forms for recipe entry and meal plan review</li>
+          <li>A spacious editor for updating or deleting recipes</li>
+          <li>Full meal plan export to PDF from the results page</li>
+          <li>Find dinner recipes by typing ingredients you have</li>
+          <li>Dark mode for comfortable evening browsing</li>
+          <li>All data persists in your browser between sessions</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- ──── ADD RECIPE ──── -->
+  <section id="page-add" class="hidden">
+    <div class="page-header">
+      <h2>Add a new recipe</h2>
+      <p>Enter a recipe title and place each ingredient on its own line for cleaner meal plan output.</p>
+    </div>
+    <div class="card">
+      <div class="card-title">Recipe details</div>
+      <div class="card-desc">Recipes are saved automatically to localStorage when you click Save Recipe.</div>
+      <div class="form-group">
+        <label class="field" for="addTitle">Recipe Title</label>
+        <input class="text-input" id="addTitle" type="text" placeholder="e.g. Chicken Parmesan" />
+      </div>
+      <div class="form-group">
+        <label class="field" for="addIngredients">Ingredients (one per line)</label>
+        <textarea class="text-input" id="addIngredients" placeholder="2 chicken breasts&#10;1 cup marinara sauce&#10;1 cup mozzarella cheese&#10;..."></textarea>
+      </div>
+      <div class="btn-group">
+        <button class="btn btn-primary" onclick="saveNewRecipe()">Save Recipe</button>
+        <button class="btn btn-secondary" onclick="clearAddForm()">Clear</button>
+        <button class="btn btn-secondary" onclick="navigate('home')">Back to Overview</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ──── MANAGE ──── -->
+  <section id="page-manage" class="hidden">
+    <div class="page-header">
+      <h2>Edit or delete recipes</h2>
+      <p>Select a recipe from the left, update its details, or remove it from the recipe book.</p>
+    </div>
+    <div class="card" id="manageEmpty">
+      <div class="card-title">No recipes available</div>
+      <div class="card-desc">Add a recipe first, then return here to edit or delete it.</div>
+      <button class="btn btn-primary" onclick="navigate('add')">Add a New Recipe</button>
+    </div>
+    <div class="split hidden" id="manageEditor" style="flex:1;">
+      <div class="panel-left card" style="padding:16px;">
+        <div class="card-title" style="margin-bottom:10px;">Saved recipes</div>
+        <ul class="recipe-list" id="recipeList"></ul>
+      </div>
+      <div class="panel-right card">
+        <div class="card-title">Recipe editor</div>
+        <div class="card-desc">Update the title or ingredients, then save changes. You can also delete the selected recipe.</div>
+        <div class="form-group">
+          <label class="field" for="editTitle">Recipe Title</label>
+          <input class="text-input" id="editTitle" type="text" />
+        </div>
+        <div class="form-group" style="flex:1;display:flex;flex-direction:column;">
+          <label class="field" for="editIngredients">Ingredients (one per line)</label>
+          <textarea class="text-input" id="editIngredients" style="flex:1;"></textarea>
+        </div>
+        <div id="editStatus" style="color:var(--success);font-size:.88rem;margin-top:10px;min-height:1.2em;"></div>
+        <div class="btn-group">
+          <button class="btn btn-primary" onclick="saveRecipeEdits()">Save Changes</button>
+          <button class="btn btn-danger" onclick="deleteRecipe()">Delete Recipe</button>
+          <button class="btn btn-secondary" onclick="navigate('add')">Add Another Recipe</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ──── PLAN: input ──── -->
+  <section id="page-plan" class="hidden">
+    <div class="page-header">
+      <h2>Generate a meal plan</h2>
+      <p>Choose how many meals you want, review the recipe titles, and confirm the full plan before exporting it to PDF.</p>
+    </div>
+    <div class="card" id="planEmpty">
+      <div class="card-title">No recipes available</div>
+      <div class="card-desc">You need at least one recipe saved before a meal plan can be generated.</div>
+      <button class="btn btn-primary" onclick="navigate('add')">Add a New Recipe</button>
+    </div>
+    <div class="card hidden" id="planSettings">
+      <div class="card-title">Plan settings</div>
+      <div class="card-desc">Enter the number of meals to include in the random meal plan.</div>
+      <div class="form-group">
+        <label class="field" for="mealCount">Number of Meals</label>
+        <input class="text-input" id="mealCount" type="number" min="1" value="3" style="width:120px;" />
+      </div>
+      <div id="planHelper" class="warning hidden"></div>
+      <div class="btn-group">
+        <button class="btn btn-primary" onclick="generatePlan()">Generate Meal Plan</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ──── PLAN: review titles ──── -->
+  <section id="page-plan-review" class="hidden">
+    <div class="page-header">
+      <h2>Review your meal plan</h2>
+      <p>Look over the recipe titles below. Confirm to see the full plan, or generate again for a new random selection.</p>
+    </div>
+    <div class="card">
+      <div class="card-title">Selected recipe titles</div>
+      <div class="card-desc">Only recipe titles are shown first so you can review the mix before confirming.</div>
+      <div id="planWarning" class="warning hidden"></div>
+      <ol class="plan-titles" id="planTitles"></ol>
+      <div class="btn-group">
+        <button class="btn btn-primary" onclick="confirmPlan()">Confirm</button>
+        <button class="btn btn-secondary" onclick="regeneratePlan()">Generate Again</button>
+        <button class="btn btn-secondary" onclick="navigate('plan')">Back</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ──── PLAN: full output ──── -->
+  <section id="page-plan-full" class="hidden">
+    <div class="page-header">
+      <h2>Full meal plan</h2>
+      <p>Copy the text into another document if needed, or export the full plan directly to a PDF file.</p>
+    </div>
+    <div class="card" style="display:flex;flex-direction:column;flex:1;">
+      <div class="card-title">Ready to use</div>
+      <div class="card-desc">The full meal plan below includes each selected recipe title followed by all ingredients.</div>
+      <textarea class="plan-output" id="planOutput" readonly></textarea>
+      <div class="btn-group">
+        <button class="btn btn-primary" onclick="exportPDF()">Export to PDF</button>
+        <button class="btn btn-secondary" onclick="regeneratePlan()">Generate Again</button>
+        <button class="btn btn-secondary" onclick="navigate('home')">Back to Overview</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ──── FIND TONIGHT'S DINNER ──── -->
+  <section id="page-find" class="hidden">
+    <div class="page-header">
+      <h2>Find Tonight's Dinner</h2>
+      <p>Type up to 2 key ingredients you already have and see which recipes match.</p>
+    </div>
+
+    <!-- empty state -->
+    <div class="card" id="findEmpty">
+      <div class="card-title">No recipes available</div>
+      <div class="card-desc">You need at least one recipe saved before you can search by ingredient.</div>
+      <button class="btn btn-primary" onclick="navigate('add')">Add a New Recipe</button>
+    </div>
+
+    <!-- search UI -->
+    <div class="hidden" id="findUI">
+      <div class="card">
+        <div class="card-title">What do you have?</div>
+        <div class="card-desc">Enter 1 or 2 key ingredients. Press Enter or click Add after each one.</div>
+        <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+          <input class="text-input" id="findInput" type="text" placeholder="e.g. chicken" style="flex:1;min-width:180px;" />
+          <button class="btn btn-primary" id="findAddBtn" onclick="addFindTag()">Add</button>
+          <button class="btn btn-secondary" onclick="clearFindTags()">Clear All</button>
+        </div>
+        <div class="ingredient-tags" id="findTags"></div>
+        <div id="findLimitMsg" class="hidden" style="color:var(--warning);font-size:.85rem;margin-top:8px;">
+          Maximum of 2 ingredients reached. Remove one to add a different ingredient.
+        </div>
+      </div>
+
+      <div style="margin-top:18px;" id="findResultsArea">
+        <div id="findResultsHeader" class="hidden" style="margin-bottom:12px;">
+          <span style="font-weight:700;font-size:1rem;" id="findResultsCount"></span>
+        </div>
+        <div id="findResults"></div>
+      </div>
+    </div>
+  </section>
+
+</div><!-- /main -->
+
+<script>
+/* ══════════════════════════════════════════
+   DATA LAYER
+   ══════════════════════════════════════════ */
+const STORAGE_KEY = "recipe_book_data";
+const THEME_KEY   = "recipe_book_theme";
+
+function loadRecipes() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return [];
+    const data = JSON.parse(raw);
+    if (!Array.isArray(data)) return [];
+    return data
+      .filter(r => r && typeof r.title === "string" && Array.isArray(r.ingredients))
+      .map(r => ({
+        title: r.title.trim(),
+        ingredients: r.ingredients.map(i => String(i).trim()).filter(Boolean)
+      }));
+  } catch { return []; }
+}
+
+function saveRecipes(list) {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
+  updateCounts();
+}
+
+let recipes = loadRecipes();
+let currentPlan = [];
+let lastRequestedCount = 0;
+let selectedRecipeIndex = -1;
+
+/* ══════════════════════════════════════════
+   DARK MODE
+   ══════════════════════════════════════════ */
+const toggleBtn = document.getElementById("themeToggle");
+
+function applyTheme(theme) {
+  document.documentElement.setAttribute("data-theme", theme);
+  localStorage.setItem(THEME_KEY, theme);
+  if (theme === "dark") toggleBtn.classList.add("on");
+  else toggleBtn.classList.remove("on");
+}
+
+toggleBtn.addEventListener("click", () => {
+  const current = document.documentElement.getAttribute("data-theme") || "light";
+  applyTheme(current === "light" ? "dark" : "light");
+});
+
+// Restore saved preference or respect system preference
+(function initTheme() {
+  const saved = localStorage.getItem(THEME_KEY);
+  if (saved) { applyTheme(saved); return; }
+  if (window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches) {
+    applyTheme("dark");
+  }
+})();
+
+/* ══════════════════════════════════════════
+   NAVIGATION
+   ══════════════════════════════════════════ */
+const allPages = [
+  "page-home","page-add","page-manage",
+  "page-plan","page-plan-review","page-plan-full",
+  "page-find"
+];
+const navMap = {
+  home:   "page-home",
+  add:    "page-add",
+  manage: "page-manage",
+  plan:   "page-plan",
+  find:   "page-find",
+};
+
+function navigate(key) {
+  allPages.forEach(id => document.getElementById(id).classList.add("hidden"));
+  const targetId = navMap[key];
+  if (targetId) document.getElementById(targetId).classList.remove("hidden");
+
+  document.querySelectorAll(".nav-btn").forEach(b => b.classList.remove("active"));
+  const btn = document.querySelector(`.nav-btn[data-page="${key}"]`);
+  if (btn) btn.classList.add("active");
+
+  if (key === "home")   initHome();
+  if (key === "manage") initManage();
+  if (key === "plan")   initPlan();
+  if (key === "find")   initFind();
+}
+
+document.querySelectorAll(".nav-btn").forEach(btn => {
+  btn.addEventListener("click", () => navigate(btn.dataset.page));
+});
+
+function showPage(id) {
+  allPages.forEach(pid => document.getElementById(pid).classList.add("hidden"));
+  document.getElementById(id).classList.remove("hidden");
+}
+
+/* ══════════════════════════════════════════
+   COUNTS
+   ══════════════════════════════════════════ */
+function updateCounts() {
+  const n = recipes.length;
+  const label = n === 1 ? "recipe" : "recipes";
+  document.getElementById("sidebarCount").textContent = `${n} ${label} saved`;
+  const hc = document.getElementById("homeCount");
+  if (hc) hc.textContent = n;
+}
+updateCounts();
+
+/* ══════════════════════════════════════════
+   HOME
+   ══════════════════════════════════════════ */
+function initHome() { updateCounts(); }
+
+/* ══════════════════════════════════════════
+   ADD RECIPE
+   ══════════════════════════════════════════ */
+function clearAddForm() {
+  document.getElementById("addTitle").value = "";
+  document.getElementById("addIngredients").value = "";
+  document.getElementById("addTitle").focus();
+}
+
+function saveNewRecipe() {
+  const title = document.getElementById("addTitle").value.trim();
+  const raw   = document.getElementById("addIngredients").value;
+  const ingredients = raw.split("\n").map(s => s.trim()).filter(Boolean);
+  if (!title)              return alert("Please enter a recipe title.");
+  if (!ingredients.length) return alert("Please enter at least one ingredient.");
+  recipes.push({ title, ingredients });
+  saveRecipes(recipes);
+  alert(`"${title}" has been added to the Recipe Book.`);
+  clearAddForm();
+  navigate("manage");
+}
+
+/* ══════════════════════════════════════════
+   MANAGE RECIPES
+   ══════════════════════════════════════════ */
+function initManage() {
+  const empty  = document.getElementById("manageEmpty");
+  const editor = document.getElementById("manageEditor");
+  if (recipes.length === 0) {
+    empty.classList.remove("hidden");
+    editor.classList.add("hidden");
+    return;
+  }
+  empty.classList.add("hidden");
+  editor.classList.remove("hidden");
+  buildRecipeList();
+  selectRecipe(0);
+}
+
+function buildRecipeList() {
+  const ul = document.getElementById("recipeList");
+  ul.innerHTML = "";
+  recipes.forEach((r, i) => {
+    const li = document.createElement("li");
+    li.textContent = r.title;
+    li.dataset.index = i;
+    li.addEventListener("click", () => selectRecipe(i));
+    ul.appendChild(li);
+  });
+}
+
+function selectRecipe(index) {
+  if (index < 0 || index >= recipes.length) return;
+  selectedRecipeIndex = index;
+  const r = recipes[index];
+  document.getElementById("editTitle").value = r.title;
+  document.getElementById("editIngredients").value = r.ingredients.join("\n");
+  document.getElementById("editStatus").textContent = `Editing: ${r.title}`;
+  document.getElementById("editStatus").style.color = "var(--success)";
+  document.querySelectorAll("#recipeList li").forEach(li => {
+    li.classList.toggle("active", Number(li.dataset.index) === index);
+  });
+}
+
+function saveRecipeEdits() {
+  if (selectedRecipeIndex < 0) return alert("Please select a recipe to edit.");
+  const title = document.getElementById("editTitle").value.trim();
+  const ingredients = document.getElementById("editIngredients").value.split("\n").map(s => s.trim()).filter(Boolean);
+  if (!title)              return alert("Please enter a recipe title.");
+  if (!ingredients.length) return alert("Please enter at least one ingredient.");
+  recipes[selectedRecipeIndex] = { title, ingredients };
+  saveRecipes(recipes);
+  buildRecipeList();
+  selectRecipe(selectedRecipeIndex);
+  document.getElementById("editStatus").textContent = `Saved changes to: ${title}`;
+  document.getElementById("editStatus").style.color = "var(--success)";
+  alert(`"${title}" was updated successfully.`);
+}
+
+function deleteRecipe() {
+  if (selectedRecipeIndex < 0) return alert("Please select a recipe to delete.");
+  const title = recipes[selectedRecipeIndex].title;
+  if (!confirm(`Are you sure you want to delete "${title}" from the Recipe Book?`)) return;
+  recipes.splice(selectedRecipeIndex, 1);
+  saveRecipes(recipes);
+  selectedRecipeIndex = -1;
+  initManage();
+  alert(`"${title}" was deleted successfully.`);
+}
+
+/* ══════════════════════════════════════════
+   GENERATE PLAN — settings
+   ══════════════════════════════════════════ */
+function initPlan() {
+  const empty    = document.getElementById("planEmpty");
+  const settings = document.getElementById("planSettings");
+  const helper   = document.getElementById("planHelper");
+  helper.classList.add("hidden");
+  if (recipes.length === 0) {
+    empty.classList.remove("hidden");
+    settings.classList.add("hidden");
+  } else {
+    empty.classList.add("hidden");
+    settings.classList.remove("hidden");
+  }
+}
+
+function generatePlan() {
+  const input  = document.getElementById("mealCount");
+  const helper = document.getElementById("planHelper");
+  const val    = parseInt(input.value, 10);
+  if (isNaN(val) || val <= 0) {
+    helper.textContent = "Please enter a whole number greater than 0.";
+    helper.classList.remove("hidden");
+    return;
+  }
+  helper.classList.add("hidden");
+  lastRequestedCount = val;
+  buildCandidatePlan(lastRequestedCount);
+}
+
+/* ══════════════════════════════════════════
+   GENERATE PLAN — review titles
+   ══════════════════════════════════════════ */
+function shuffleAndPick(count) {
+  const available = recipes.length;
+  const pick = Math.min(count, available);
+  const shuffled = [...recipes].sort(() => Math.random() - 0.5);
+  return { chosen: shuffled.slice(0, pick), short: count > available };
+}
+
+function buildCandidatePlan(requested) {
+  const { chosen, short } = shuffleAndPick(requested);
+  currentPlan = chosen;
+  showPage("page-plan-review");
+  document.querySelectorAll(".nav-btn").forEach(b => b.classList.remove("active"));
+  document.querySelector('.nav-btn[data-page="plan"]').classList.add("active");
+
+  const warn = document.getElementById("planWarning");
+  if (short) { warn.textContent = "Not Enough Recipes in the Recipe Book!"; warn.classList.remove("hidden"); }
+  else       { warn.classList.add("hidden"); }
+
+  const ol = document.getElementById("planTitles");
+  ol.innerHTML = "";
+  currentPlan.forEach(r => {
+    const li = document.createElement("li");
+    li.textContent = r.title;
+    ol.appendChild(li);
+  });
+}
+
+function regeneratePlan() { buildCandidatePlan(lastRequestedCount); }
+
+/* ══════════════════════════════════════════
+   GENERATE PLAN — full output
+   ══════════════════════════════════════════ */
+function formatMealPlanText() {
+  let lines = ["Meal Plan", "=".repeat(40), ""];
+  currentPlan.forEach((r, i) => {
+    lines.push(`${i + 1}. ${r.title}`);
+    r.ingredients.forEach(ing => lines.push(`   - ${ing}`));
+    lines.push("");
+  });
+  return lines.join("\n").trimEnd() + "\n";
+}
+
+function confirmPlan() {
+  showPage("page-plan-full");
+  document.querySelectorAll(".nav-btn").forEach(b => b.classList.remove("active"));
+  document.querySelector('.nav-btn[data-page="plan"]').classList.add("active");
+  document.getElementById("planOutput").value = formatMealPlanText();
+}
+
+/* ══════════════════════════════════════════
+   PDF EXPORT
+   ══════════════════════════════════════════ */
+function exportPDF() {
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ unit: "pt", format: "letter" });
+  const text = formatMealPlanText();
+  const lines = text.split("\n");
+  const marginLeft = 54, marginTop = 54, marginBottom = 54;
+  const pageHeight = doc.internal.pageSize.getHeight();
+  const lineHeight = 16;
+  doc.setFont("courier", "normal");
+  doc.setFontSize(11);
+  let y = marginTop;
+  lines.forEach(line => {
+    if (y + lineHeight > pageHeight - marginBottom) { doc.addPage(); y = marginTop; }
+    doc.text(line, marginLeft, y);
+    y += lineHeight;
+  });
+  doc.save("meal_plan.pdf");
+}
+
+/* ══════════════════════════════════════════
+   FIND TONIGHT'S DINNER
+   ══════════════════════════════════════════ */
+let findTags = [];
+
+function initFind() {
+  const empty = document.getElementById("findEmpty");
+  const ui    = document.getElementById("findUI");
+  if (recipes.length === 0) {
+    empty.classList.remove("hidden");
+    ui.classList.add("hidden");
+  } else {
+    empty.classList.add("hidden");
+    ui.classList.remove("hidden");
+  }
+  clearFindTags();
+}
+
+// Enter key support
+document.getElementById("findInput").addEventListener("keydown", e => {
+  if (e.key === "Enter") { e.preventDefault(); addFindTag(); }
+});
+
+function addFindTag() {
+  const input = document.getElementById("findInput");
+  const val = input.value.trim().toLowerCase();
+  if (!val) return;
+  if (findTags.length >= 2) return;
+  if (findTags.includes(val)) { input.value = ""; return; }
+  findTags.push(val);
+  input.value = "";
+  renderFindTags();
+  runFind();
+}
+
+function removeFindTag(index) {
+  findTags.splice(index, 1);
+  renderFindTags();
+  runFind();
+}
+
+function clearFindTags() {
+  findTags = [];
+  renderFindTags();
+  document.getElementById("findResults").innerHTML = "";
+  document.getElementById("findResultsHeader").classList.add("hidden");
+  document.getElementById("findInput").value = "";
+}
+
+function renderFindTags() {
+  const container = document.getElementById("findTags");
+  const limitMsg  = document.getElementById("findLimitMsg");
+  const input     = document.getElementById("findInput");
+  const addBtn    = document.getElementById("findAddBtn");
+  container.innerHTML = "";
+  findTags.forEach((tag, i) => {
+    const span = document.createElement("span");
+    span.className = "ingredient-tag";
+    span.innerHTML = `${tag}<span class="remove-tag" onclick="removeFindTag(${i})">&times;</span>`;
+    container.appendChild(span);
+  });
+  if (findTags.length >= 2) {
+    limitMsg.classList.remove("hidden");
+    input.disabled = true;
+    addBtn.disabled = true;
+  } else {
+    limitMsg.classList.add("hidden");
+    input.disabled = false;
+    addBtn.disabled = false;
+  }
+}
+
+function runFind() {
+  const resultsDiv   = document.getElementById("findResults");
+  const headerDiv    = document.getElementById("findResultsHeader");
+  const countSpan    = document.getElementById("findResultsCount");
+  resultsDiv.innerHTML = "";
+
+  if (findTags.length === 0) {
+    headerDiv.classList.add("hidden");
+    return;
+  }
+
+  // Score each recipe: how many of the searched tags appear in any ingredient
+  const scored = recipes.map(r => {
+    const lowerIngredients = r.ingredients.map(i => i.toLowerCase());
+    let matched = [];
+    findTags.forEach(tag => {
+      if (lowerIngredients.some(ing => ing.includes(tag))) {
+        matched.push(tag);
+      }
+    });
+    return { recipe: r, matched, score: matched.length };
+  }).filter(s => s.score > 0);
+
+  // Sort: more matches first, then alphabetical by title
+  scored.sort((a, b) => {
+    if (b.score !== a.score) return b.score - a.score;
+    return a.recipe.title.localeCompare(b.recipe.title);
+  });
+
+  headerDiv.classList.remove("hidden");
+  if (scored.length === 0) {
+    countSpan.textContent = "No matching recipes found";
+    resultsDiv.innerHTML = `<div class="no-results-msg">None of your saved recipes contain the ingredient${findTags.length > 1 ? "s" : ""} you entered.<br>Try a different keyword or add more recipes.</div>`;
+    return;
+  }
+
+  const label = scored.length === 1 ? "recipe" : "recipes";
+  countSpan.textContent = `${scored.length} matching ${label}`;
+
+  scored.forEach(({ recipe, matched, score }) => {
+    const card = document.createElement("div");
+    card.className = "match-card";
+
+    // Title
+    const title = document.createElement("div");
+    title.className = "match-card-title";
+    title.textContent = recipe.title;
+    card.appendChild(title);
+
+    // Badges
+    const badges = document.createElement("div");
+    badges.className = "match-badges";
+    if (findTags.length > 1 && score === findTags.length) {
+      const b = document.createElement("span");
+      b.className = "match-badge full";
+      b.textContent = "Matches all ingredients";
+      badges.appendChild(b);
+    }
+    matched.forEach(tag => {
+      const b = document.createElement("span");
+      b.className = "match-badge";
+      b.textContent = `Contains: ${tag}`;
+      badges.appendChild(b);
+    });
+    card.appendChild(badges);
+
+    // Ingredient list with highlights
+    const ul = document.createElement("ul");
+    ul.className = "match-ingredients";
+    recipe.ingredients.forEach(ing => {
+      const li = document.createElement("li");
+      li.textContent = `- ${ing}`;
+      const ingLower = ing.toLowerCase();
+      if (matched.some(tag => ingLower.includes(tag))) {
+        li.classList.add("highlight");
+      }
+      ul.appendChild(li);
+    });
+    card.appendChild(ul);
+
+    resultsDiv.appendChild(card);
+  });
+}
+
+/* ══════════════════════════════════════════
+   INIT
+   ══════════════════════════════════════════ */
+navigate("home");
+</script>
+</body>
+</html>

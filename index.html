@@ -1,0 +1,578 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Digital Recipe Book &amp; Meal Planner</title>
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="mobile-web-app-capable" content="yes" />
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root,[data-theme="light"]{
+  --bg:#EEF2F7;--sidebar:#192231;--sidebar-alt:#243246;--sidebar-text:#F8FAFC;
+  --sidebar-hint:#9FB0C3;--sidebar-count:#D8E1EC;--card:#FFFFFF;--text:#18212F;
+  --muted:#5B677A;--border:#D8DFE8;--accent:#3B82F6;--accent-hover:#2563EB;
+  --success:#0F9D58;--warning:#B45309;--danger:#C62828;--list-hover:#F1F5FB;
+  --list-active:#E0ECFF;--plan-bg:#F7F9FC;--output-bg:#FAFBFD;--summary-bg:#FFFFFF;
+  --btn-sec-bg:#E9EEF5;--btn-sec-hover:#DAE2EF;--btn-dng-bg:#FDECEA;--input-bg:#FFFFFF;
+  --radius:10px;--shadow:0 1px 3px rgba(0,0,0,.08),0 1px 2px rgba(0,0,0,.06);
+  --toggle-bg:#D8DFE8;--toggle-knob:#FFFFFF;--match-badge:#EFF6FF;--match-badge-t:#1D4ED8;
+  --match-card-border:#D8DFE8;--overlay:rgba(0,0,0,.35);
+  --import-drop-bg:#F7F9FC;--import-drop-border:#C5D0DE;--import-drop-active:#DBEAFE;
+}
+[data-theme="dark"]{
+  --bg:#0F1729;--sidebar:#0B1120;--sidebar-alt:#162032;--sidebar-text:#E2E8F0;
+  --sidebar-hint:#64748B;--sidebar-count:#94A3B8;--card:#1A2436;--text:#E2E8F0;
+  --muted:#94A3B8;--border:#2D3B50;--accent:#60A5FA;--accent-hover:#3B82F6;
+  --success:#34D399;--warning:#FBBF24;--danger:#F87171;--list-hover:#1E2D42;
+  --list-active:#1E3A5F;--plan-bg:#162032;--output-bg:#121D2E;--summary-bg:#1A2436;
+  --btn-sec-bg:#1E2D42;--btn-sec-hover:#263752;--btn-dng-bg:#3B1A1A;--input-bg:#121D2E;
+  --shadow:0 1px 3px rgba(0,0,0,.30),0 1px 2px rgba(0,0,0,.22);
+  --toggle-bg:#3B82F6;--toggle-knob:#FFFFFF;--match-badge:#1E3A5F;--match-badge-t:#93C5FD;
+  --match-card-border:#2D3B50;--overlay:rgba(0,0,0,.55);
+  --import-drop-bg:#121D2E;--import-drop-border:#3B5068;--import-drop-active:#1E3A5F;
+}
+body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:var(--bg);color:var(--text);display:flex;height:100vh;overflow:hidden;transition:background .25s,color .25s}
+
+/* Sidebar */
+.sidebar{width:260px;min-width:260px;background:var(--sidebar);display:flex;flex-direction:column;padding:22px 0;user-select:none;transition:background .25s,transform .3s cubic-bezier(.4,0,.2,1);z-index:100}
+.sidebar-header{padding:0 20px 18px;display:flex;align-items:center;justify-content:space-between}
+.sidebar-header div{display:flex;flex-direction:column}
+.sidebar-header h1{color:var(--sidebar-text);font-size:1.25rem}
+.sidebar-header p{color:var(--sidebar-hint);font-size:.82rem;margin-top:4px}
+.sidebar-close{display:none;background:transparent;border:none;color:var(--sidebar-text);font-size:1.6rem;cursor:pointer;padding:4px 8px;border-radius:6px;transition:background .15s}
+.sidebar-close:hover{background:var(--sidebar-alt)}
+.nav-btn{display:block;width:calc(100% - 32px);margin:3px 16px;padding:12px 18px;border:none;border-radius:8px;background:transparent;color:var(--sidebar-text);font-size:.95rem;text-align:left;cursor:pointer;transition:background .15s}
+.nav-btn:hover{background:var(--sidebar-alt)}
+.nav-btn.active{background:var(--sidebar-alt);font-weight:600}
+.sidebar-footer{margin-top:auto;padding:20px;color:var(--sidebar-count);font-size:.82rem}
+.sidebar-footer .count{font-weight:700}
+.sidebar-footer .hint{color:var(--sidebar-hint);font-size:.78rem;margin-top:4px}
+.theme-toggle-row{display:flex;align-items:center;gap:10px;padding:0 20px;margin-bottom:8px}
+.theme-toggle-label{color:var(--sidebar-text);font-size:.85rem;user-select:none}
+.theme-toggle{position:relative;width:44px;height:24px;background:var(--toggle-bg);border-radius:12px;cursor:pointer;border:none;padding:0;transition:background .25s}
+.theme-toggle::after{content:'';position:absolute;top:3px;left:3px;width:18px;height:18px;background:var(--toggle-knob);border-radius:50%;transition:transform .25s}
+.theme-toggle.on::after{transform:translateX(20px)}
+.sidebar-overlay{display:none;position:fixed;inset:0;background:var(--overlay);z-index:90;transition:opacity .25s}
+.hamburger{display:none;position:fixed;top:14px;left:14px;z-index:80;background:var(--sidebar);color:var(--sidebar-text);border:none;border-radius:8px;padding:10px 13px;font-size:1.3rem;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.25);transition:background .25s}
+.hamburger:hover{background:var(--sidebar-alt)}
+
+/* Main */
+.main{flex:1;display:flex;flex-direction:column;overflow-y:auto;padding:28px 32px;transition:background .25s}
+.page-header{margin-bottom:18px}
+.page-header h2{font-size:1.55rem}
+.page-header p{color:var(--muted);font-size:.88rem;margin-top:4px}
+
+/* Cards */
+.card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:22px 26px;box-shadow:var(--shadow);transition:background .25s,border-color .25s}
+.card+.card{margin-top:16px}
+.card-title{font-size:1.05rem;font-weight:700;margin-bottom:2px}
+.card-desc{color:var(--muted);font-size:.85rem;margin-bottom:16px}
+
+/* Buttons */
+.btn{display:inline-flex;align-items:center;gap:6px;padding:10px 20px;border:none;border-radius:8px;font-size:.9rem;font-weight:600;cursor:pointer;transition:background .15s,box-shadow .15s}
+.btn-primary{background:var(--accent);color:#fff}.btn-primary:hover{background:var(--accent-hover)}
+.btn-secondary{background:var(--btn-sec-bg);color:var(--text)}.btn-secondary:hover{background:var(--btn-sec-hover)}
+.btn-danger{background:var(--btn-dng-bg);color:var(--danger)}.btn-danger:hover{opacity:.85}
+.btn-success{background:var(--success);color:#fff}.btn-success:hover{opacity:.9}
+.btn-group{display:flex;flex-wrap:wrap;gap:10px;margin-top:18px}
+
+/* Forms */
+label.field{display:block;font-weight:600;font-size:.88rem;margin-bottom:6px}
+input.text-input,textarea.text-input{width:100%;padding:10px 14px;border:1px solid var(--border);border-radius:8px;font-size:.92rem;font-family:inherit;transition:border-color .15s,box-shadow .15s,background .25s;background:var(--input-bg);color:var(--text)}
+input.text-input:focus,textarea.text-input:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px rgba(59,130,246,.15)}
+textarea.text-input{resize:vertical;min-height:200px}
+.form-group+.form-group{margin-top:16px}
+
+/* Summary row */
+.summary-row{display:flex;gap:14px;margin-bottom:18px}
+.summary-card{flex:1;background:var(--summary-bg);border:1px solid var(--border);border-radius:var(--radius);padding:18px 22px;box-shadow:var(--shadow);transition:background .25s,border-color .25s}
+.summary-card .label{color:var(--muted);font-size:.82rem}
+.summary-card .value{color:var(--accent);font-size:1.55rem;font-weight:700;margin:8px 0 4px}
+.summary-card .note{font-size:.82rem}
+
+/* Split layout */
+.split{display:flex;gap:16px;flex:1;min-height:0}
+.split .panel-left{width:300px;min-width:260px;display:flex;flex-direction:column}
+.split .panel-right{flex:1;display:flex;flex-direction:column}
+
+/* Recipe list */
+.recipe-list{list-style:none;flex:1;overflow-y:auto;border:1px solid var(--border);border-radius:8px;background:var(--input-bg);transition:background .25s}
+.recipe-list li{padding:11px 16px;cursor:pointer;border-bottom:1px solid var(--border);font-size:.92rem;transition:background .1s}
+.recipe-list li:last-child{border-bottom:none}
+.recipe-list li:hover{background:var(--list-hover)}
+.recipe-list li.active{background:var(--list-active);font-weight:600}
+
+/* Plan list */
+.plan-titles{list-style:none;background:var(--plan-bg);border:1px solid var(--border);border-radius:8px;padding:14px 20px;transition:background .25s}
+.plan-titles li{padding:6px 0;font-size:1rem}
+
+/* Meal plan output */
+.plan-output{width:100%;min-height:280px;padding:14px 18px;border:1px solid var(--border);border-radius:8px;font-family:'Consolas','Courier New',monospace;font-size:.9rem;resize:vertical;background:var(--output-bg);color:var(--text);flex:1;transition:background .25s,color .25s}
+
+.warning{color:var(--warning);font-weight:700;font-size:.92rem;margin-bottom:12px}
+
+/* Find dinner */
+.ingredient-tags{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px;min-height:34px}
+.ingredient-tag{display:inline-flex;align-items:center;gap:6px;background:var(--accent);color:#fff;padding:5px 12px;border-radius:16px;font-size:.85rem;font-weight:600}
+.ingredient-tag .remove-tag{cursor:pointer;font-size:1rem;line-height:1;opacity:.8;transition:opacity .15s}
+.ingredient-tag .remove-tag:hover{opacity:1}
+.match-card{background:var(--card);border:1px solid var(--match-card-border);border-radius:var(--radius);padding:18px 22px;box-shadow:var(--shadow);transition:background .25s,border-color .25s;margin-bottom:12px}
+.match-card-title{font-size:1.05rem;font-weight:700;margin-bottom:6px}
+.match-badges{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px}
+.match-badge{display:inline-block;padding:3px 10px;border-radius:12px;font-size:.78rem;font-weight:600;background:var(--match-badge);color:var(--match-badge-t)}
+.match-badge.full{background:#D1FAE5;color:#065F46}
+[data-theme="dark"] .match-badge.full{background:#064E3B;color:#6EE7B7}
+.match-ingredients{list-style:none;padding:0;font-size:.88rem;color:var(--muted);line-height:1.7}
+.match-ingredients li.highlight{color:var(--accent);font-weight:600}
+.no-results-msg{color:var(--muted);font-size:.95rem;padding:20px 0;text-align:center}
+
+/* Import PDF */
+.drop-zone{border:2px dashed var(--import-drop-border);border-radius:var(--radius);background:var(--import-drop-bg);padding:40px 24px;text-align:center;cursor:pointer;transition:background .2s,border-color .2s}
+.drop-zone:hover,.drop-zone.dragover{border-color:var(--accent);background:var(--import-drop-active)}
+.drop-zone-icon{font-size:2.4rem;margin-bottom:10px}
+.drop-zone-text{font-size:.95rem;color:var(--muted)}
+.drop-zone-text strong{color:var(--accent)}
+.drop-zone input[type="file"]{display:none}
+.import-recipe-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:16px 20px;box-shadow:var(--shadow);margin-bottom:12px;transition:background .25s,border-color .25s,opacity .25s;display:flex;gap:14px;align-items:flex-start}
+.import-recipe-card.skipped{opacity:.45}
+.import-recipe-card .irc-checkbox{margin-top:3px;width:20px;height:20px;accent-color:var(--accent);cursor:pointer;flex-shrink:0}
+.import-recipe-card .irc-body{flex:1;min-width:0}
+.import-recipe-card .irc-title{font-weight:700;font-size:1rem;margin-bottom:4px}
+.import-recipe-card .irc-dup{display:inline-block;padding:2px 9px;border-radius:10px;font-size:.75rem;font-weight:600;margin-left:8px;background:var(--warning);color:#fff}
+.import-recipe-card .irc-ingredients{list-style:none;padding:0;font-size:.85rem;color:var(--muted);line-height:1.65;margin-top:4px}
+.import-summary{display:flex;gap:14px;flex-wrap:wrap;margin-bottom:16px}
+.import-stat{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:14px 20px;flex:1;min-width:140px;text-align:center;box-shadow:var(--shadow);transition:background .25s}
+.import-stat .is-val{font-size:1.6rem;font-weight:700;color:var(--accent)}
+.import-stat .is-label{font-size:.82rem;color:var(--muted);margin-top:4px}
+
+.hidden{display:none!important}
+
+/* Responsive */
+@media(max-width:768px){
+  .sidebar{position:fixed;top:0;left:0;bottom:0;transform:translateX(-100%);box-shadow:4px 0 24px rgba(0,0,0,.25)}
+  .sidebar.open{transform:translateX(0)}
+  .sidebar-close{display:block}
+  .sidebar-overlay.visible{display:block}
+  .hamburger{display:block}
+  .main{padding:60px 16px 24px}
+  .page-header h2{font-size:1.3rem}
+  .summary-row{flex-direction:column}
+  .split{flex-direction:column}
+  .split .panel-left{width:100%;min-width:0}
+  .split .panel-left .recipe-list{max-height:180px}
+  .btn-group{flex-direction:column}
+  .btn-group .btn{width:100%;justify-content:center}
+  .import-summary{flex-direction:column}
+}
+@media(min-width:769px)and(max-width:1024px){
+  .sidebar{width:220px;min-width:220px}
+  .main{padding:24px 22px}
+  .split .panel-left{width:240px;min-width:200px}
+}
+</style>
+</head>
+<body>
+
+<button class="hamburger" id="hamburgerBtn" aria-label="Open menu">&#9776;</button>
+<div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+<aside class="sidebar" id="sidebar">
+  <div class="sidebar-header">
+    <div><h1>Recipe Planner</h1><p>Meal planning made simple</p></div>
+    <button class="sidebar-close" id="sidebarCloseBtn" aria-label="Close menu">&times;</button>
+  </div>
+  <div class="theme-toggle-row">
+    <span class="theme-toggle-label">Dark Mode</span>
+    <button class="theme-toggle" id="themeToggle" aria-label="Toggle dark mode"></button>
+  </div>
+  <button class="nav-btn active" data-page="home">Overview</button>
+  <button class="nav-btn" data-page="add">Add Recipe</button>
+  <button class="nav-btn" data-page="manage">Edit / Delete</button>
+  <button class="nav-btn" data-page="plan">Generate Plan</button>
+  <button class="nav-btn" data-page="find">Find Dinner</button>
+  <button class="nav-btn" data-page="import">Import PDF</button>
+  <div class="sidebar-footer">
+    <div class="count" id="sidebarCount">0 recipes saved</div>
+    <div class="hint">Stored in browser localStorage</div>
+  </div>
+</aside>
+
+<div class="main" id="mainContent">
+
+  <!-- HOME -->
+  <section id="page-home">
+    <div class="page-header"><h2>Welcome back</h2><p>Manage recipes, build meal plans, and export a polished PDF &mdash; all inside your browser.</p></div>
+    <div class="summary-row">
+      <div class="summary-card"><div class="label">Recipes Saved</div><div class="value" id="homeCount">0</div><div class="note">Stored in localStorage for instant access</div></div>
+      <div class="summary-card"><div class="label">Storage</div><div class="value" style="font-size:1.1rem;">localStorage</div><div class="note">Persists between sessions in this browser</div></div>
+      <div class="summary-card"><div class="label">Sharing</div><div class="value" style="font-size:1.1rem;">PDF ↔ Import</div><div class="note">Export a plan, share the PDF, import it anywhere</div></div>
+    </div>
+    <div style="display:flex;gap:16px;flex-wrap:wrap;">
+      <div class="card" style="flex:1;min-width:260px;">
+        <div class="card-title">Quick Start</div><div class="card-desc">Choose a workflow below to get moving quickly.</div>
+        <button class="btn btn-primary" style="width:100%;margin-bottom:10px;" onclick="navigate('add')">Add a New Recipe</button>
+        <button class="btn btn-secondary" style="width:100%;margin-bottom:10px;" onclick="navigate('manage')">Edit or Delete Recipes</button>
+        <button class="btn btn-secondary" style="width:100%;margin-bottom:10px;" onclick="navigate('plan')">Generate a Meal Plan</button>
+        <button class="btn btn-secondary" style="width:100%;margin-bottom:10px;" onclick="navigate('find')">Find Tonight's Dinner</button>
+        <button class="btn btn-secondary" style="width:100%;" onclick="navigate('import')">Import Recipes from PDF</button>
+      </div>
+      <div class="card" style="flex:1;min-width:260px;">
+        <div class="card-title">What this dashboard offers</div><div class="card-desc">A browser-based recipe planner with a modern layout.</div>
+        <ul style="list-style:disc;padding-left:20px;color:var(--text);font-size:.92rem;line-height:1.8;">
+          <li>Sidebar navigation for quick switching between tasks</li>
+          <li>Card-based forms for recipe entry and meal plan review</li>
+          <li>A spacious editor for updating or deleting recipes</li>
+          <li>Full meal plan export to PDF from the results page</li>
+          <li>Import a shared meal plan PDF to add recipes to your book</li>
+          <li>Find dinner recipes by typing ingredients you have</li>
+          <li>Dark mode for comfortable evening browsing</li>
+          <li>All data persists in your browser between sessions</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- ADD RECIPE -->
+  <section id="page-add" class="hidden">
+    <div class="page-header"><h2>Add a new recipe</h2><p>Enter a recipe title and place each ingredient on its own line for cleaner meal plan output.</p></div>
+    <div class="card">
+      <div class="card-title">Recipe details</div><div class="card-desc">Recipes are saved automatically to localStorage when you click Save Recipe.</div>
+      <div class="form-group"><label class="field" for="addTitle">Recipe Title</label><input class="text-input" id="addTitle" type="text" placeholder="e.g. Chicken Parmesan" /></div>
+      <div class="form-group"><label class="field" for="addIngredients">Ingredients (one per line)</label><textarea class="text-input" id="addIngredients" placeholder="2 chicken breasts&#10;1 cup marinara sauce&#10;1 cup mozzarella cheese&#10;..."></textarea></div>
+      <div class="btn-group">
+        <button class="btn btn-primary" onclick="saveNewRecipe()">Save Recipe</button>
+        <button class="btn btn-secondary" onclick="clearAddForm()">Clear</button>
+        <button class="btn btn-secondary" onclick="navigate('home')">Back to Overview</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- MANAGE -->
+  <section id="page-manage" class="hidden">
+    <div class="page-header"><h2>Edit or delete recipes</h2><p>Select a recipe from the left, update its details, or remove it from the recipe book.</p></div>
+    <div class="card" id="manageEmpty"><div class="card-title">No recipes available</div><div class="card-desc">Add a recipe first, then return here to edit or delete it.</div><button class="btn btn-primary" onclick="navigate('add')">Add a New Recipe</button></div>
+    <div class="split hidden" id="manageEditor" style="flex:1;">
+      <div class="panel-left card" style="padding:16px;">
+        <div class="card-title" style="margin-bottom:10px;">Saved recipes</div>
+        <ul class="recipe-list" id="recipeList"></ul>
+      </div>
+      <div class="panel-right card">
+        <div class="card-title">Recipe editor</div><div class="card-desc">Update the title or ingredients, then save changes. You can also delete the selected recipe.</div>
+        <div class="form-group"><label class="field" for="editTitle">Recipe Title</label><input class="text-input" id="editTitle" type="text" /></div>
+        <div class="form-group" style="flex:1;display:flex;flex-direction:column;"><label class="field" for="editIngredients">Ingredients (one per line)</label><textarea class="text-input" id="editIngredients" style="flex:1;"></textarea></div>
+        <div id="editStatus" style="color:var(--success);font-size:.88rem;margin-top:10px;min-height:1.2em;"></div>
+        <div class="btn-group">
+          <button class="btn btn-primary" onclick="saveRecipeEdits()">Save Changes</button>
+          <button class="btn btn-danger" onclick="deleteRecipe()">Delete Recipe</button>
+          <button class="btn btn-secondary" onclick="navigate('add')">Add Another Recipe</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- PLAN: input -->
+  <section id="page-plan" class="hidden">
+    <div class="page-header"><h2>Generate a meal plan</h2><p>Choose how many meals you want, review the recipe titles, and confirm the full plan before exporting it to PDF.</p></div>
+    <div class="card" id="planEmpty"><div class="card-title">No recipes available</div><div class="card-desc">You need at least one recipe saved before a meal plan can be generated.</div><button class="btn btn-primary" onclick="navigate('add')">Add a New Recipe</button></div>
+    <div class="card hidden" id="planSettings">
+      <div class="card-title">Plan settings</div><div class="card-desc">Enter the number of meals to include in the random meal plan.</div>
+      <div class="form-group"><label class="field" for="mealCount">Number of Meals</label><input class="text-input" id="mealCount" type="number" min="1" value="3" style="width:120px;" /></div>
+      <div id="planHelper" class="warning hidden"></div>
+      <div class="btn-group"><button class="btn btn-primary" onclick="generatePlan()">Generate Meal Plan</button></div>
+    </div>
+  </section>
+
+  <!-- PLAN: review -->
+  <section id="page-plan-review" class="hidden">
+    <div class="page-header"><h2>Review your meal plan</h2><p>Look over the recipe titles below. Confirm to see the full plan, or generate again for a new random selection.</p></div>
+    <div class="card">
+      <div class="card-title">Selected recipe titles</div><div class="card-desc">Only recipe titles are shown first so you can review the mix before confirming.</div>
+      <div id="planWarning" class="warning hidden"></div>
+      <ol class="plan-titles" id="planTitles"></ol>
+      <div class="btn-group">
+        <button class="btn btn-primary" onclick="confirmPlan()">Confirm</button>
+        <button class="btn btn-secondary" onclick="regeneratePlan()">Generate Again</button>
+        <button class="btn btn-secondary" onclick="navigate('plan')">Back</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- PLAN: full output -->
+  <section id="page-plan-full" class="hidden">
+    <div class="page-header"><h2>Full meal plan</h2><p>Copy the text into another document if needed, or export the full plan directly to a PDF file.</p></div>
+    <div class="card" style="display:flex;flex-direction:column;flex:1;">
+      <div class="card-title">Ready to use</div><div class="card-desc">The full meal plan below includes each selected recipe title followed by all ingredients.</div>
+      <textarea class="plan-output" id="planOutput" readonly></textarea>
+      <div class="btn-group">
+        <button class="btn btn-primary" onclick="exportPDF()">Export to PDF</button>
+        <button class="btn btn-secondary" onclick="regeneratePlan()">Generate Again</button>
+        <button class="btn btn-secondary" onclick="navigate('home')">Back to Overview</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- FIND DINNER -->
+  <section id="page-find" class="hidden">
+    <div class="page-header"><h2>Find Tonight's Dinner</h2><p>Type up to 2 key ingredients you already have and see which recipes match.</p></div>
+    <div class="card" id="findEmpty"><div class="card-title">No recipes available</div><div class="card-desc">You need at least one recipe saved before you can search by ingredient.</div><button class="btn btn-primary" onclick="navigate('add')">Add a New Recipe</button></div>
+    <div class="hidden" id="findUI">
+      <div class="card">
+        <div class="card-title">What do you have?</div><div class="card-desc">Enter 1 or 2 key ingredients. Press Enter or click Add after each one.</div>
+        <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+          <input class="text-input" id="findInput" type="text" placeholder="e.g. chicken" style="flex:1;min-width:140px;" />
+          <button class="btn btn-primary" id="findAddBtn" onclick="addFindTag()">Add</button>
+          <button class="btn btn-secondary" onclick="clearFindTags()">Clear All</button>
+        </div>
+        <div class="ingredient-tags" id="findTags"></div>
+        <div id="findLimitMsg" class="hidden" style="color:var(--warning);font-size:.85rem;margin-top:8px;">Maximum of 2 ingredients reached. Remove one to add a different ingredient.</div>
+      </div>
+      <div style="margin-top:18px;" id="findResultsArea">
+        <div id="findResultsHeader" class="hidden" style="margin-bottom:12px;"><span style="font-weight:700;font-size:1rem;" id="findResultsCount"></span></div>
+        <div id="findResults"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- IMPORT PDF -->
+  <section id="page-import" class="hidden">
+    <div class="page-header"><h2>Import recipes from PDF</h2><p>Upload a meal plan PDF exported from this app to add all of its recipes to your local recipe book.</p></div>
+    <div id="importStep1">
+      <div class="card">
+        <div class="card-title">Upload a meal plan PDF</div><div class="card-desc">Drag and drop a PDF file below, or click to browse. The file must be a meal plan exported by this app.</div>
+        <div class="drop-zone" id="dropZone">
+          <div class="drop-zone-icon">&#128196;</div>
+          <div class="drop-zone-text"><strong>Click to browse</strong> or drag &amp; drop a PDF here</div>
+          <input type="file" id="pdfFileInput" accept=".pdf,application/pdf" />
+        </div>
+        <div id="importError" class="hidden" style="color:var(--danger);font-weight:600;font-size:.9rem;margin-top:14px;"></div>
+        <div id="importLoading" class="hidden" style="color:var(--muted);font-size:.9rem;margin-top:14px;">Reading PDF&hellip;</div>
+      </div>
+    </div>
+    <div id="importStep2" class="hidden">
+      <div class="card" style="margin-bottom:18px;">
+        <div class="card-title">Review imported recipes</div><div class="card-desc">Uncheck any recipe you do not want to add. Duplicates (recipes already in your book with the same title) are flagged in orange.</div>
+        <div class="import-summary" id="importSummary"></div>
+        <div class="btn-group" style="margin-top:0;margin-bottom:14px;">
+          <button class="btn btn-secondary" onclick="importToggleAll(true)">Select All</button>
+          <button class="btn btn-secondary" onclick="importToggleAll(false)">Deselect All</button>
+        </div>
+        <div id="importRecipesList"></div>
+        <div class="btn-group">
+          <button class="btn btn-success" onclick="importConfirm()">Add Selected Recipes to Book</button>
+          <button class="btn btn-secondary" onclick="importReset()">Cancel &amp; Start Over</button>
+        </div>
+      </div>
+    </div>
+    <div id="importStep3" class="hidden">
+      <div class="card" style="text-align:center;padding:40px 26px;">
+        <div style="font-size:2.4rem;margin-bottom:12px;">&#9989;</div>
+        <div class="card-title" style="font-size:1.2rem;" id="importDoneMsg"></div>
+        <div class="card-desc" id="importDoneDetail"></div>
+        <div class="btn-group" style="justify-content:center;">
+          <button class="btn btn-primary" onclick="navigate('manage')">View Recipe Book</button>
+          <button class="btn btn-secondary" onclick="importReset()">Import Another PDF</button>
+          <button class="btn btn-secondary" onclick="navigate('home')">Back to Overview</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+</div>
+
+<script>
+/* ══════════ DATA ══════════ */
+const STORAGE_KEY="recipe_book_data",THEME_KEY="recipe_book_theme";
+function loadRecipes(){try{const r=localStorage.getItem(STORAGE_KEY);if(!r)return[];const d=JSON.parse(r);if(!Array.isArray(d))return[];return d.filter(r=>r&&typeof r.title==="string"&&Array.isArray(r.ingredients)).map(r=>({title:r.title.trim(),ingredients:r.ingredients.map(i=>String(i).trim()).filter(Boolean)}))}catch{return[]}}
+function saveRecipes(l){localStorage.setItem(STORAGE_KEY,JSON.stringify(l));updateCounts()}
+let recipes=loadRecipes(),currentPlan=[],lastRequestedCount=0,selectedRecipeIndex=-1;
+
+/* ══════════ SIDEBAR ══════════ */
+const sidebar=document.getElementById("sidebar"),sidebarOverlay=document.getElementById("sidebarOverlay"),hamburgerBtn=document.getElementById("hamburgerBtn"),sidebarCloseBtn=document.getElementById("sidebarCloseBtn");
+function openSidebar(){sidebar.classList.add("open");sidebarOverlay.classList.add("visible")}
+function closeSidebar(){sidebar.classList.remove("open");sidebarOverlay.classList.remove("visible")}
+hamburgerBtn.addEventListener("click",openSidebar);sidebarCloseBtn.addEventListener("click",closeSidebar);sidebarOverlay.addEventListener("click",closeSidebar);
+
+/* ══════════ DARK MODE ══════════ */
+const toggleBtn=document.getElementById("themeToggle");
+function applyTheme(t){document.documentElement.setAttribute("data-theme",t);localStorage.setItem(THEME_KEY,t);if(t==="dark")toggleBtn.classList.add("on");else toggleBtn.classList.remove("on")}
+toggleBtn.addEventListener("click",()=>{const c=document.documentElement.getAttribute("data-theme")||"light";applyTheme(c==="light"?"dark":"light")});
+(function(){const s=localStorage.getItem(THEME_KEY);if(s){applyTheme(s);return}if(window.matchMedia&&window.matchMedia("(prefers-color-scheme:dark)").matches)applyTheme("dark")})();
+
+/* ══════════ NAV ══════════ */
+const allPages=["page-home","page-add","page-manage","page-plan","page-plan-review","page-plan-full","page-find","page-import"];
+const navMap={home:"page-home",add:"page-add",manage:"page-manage",plan:"page-plan",find:"page-find",import:"page-import"};
+function navigate(key){allPages.forEach(id=>document.getElementById(id).classList.add("hidden"));const t=navMap[key];if(t)document.getElementById(t).classList.remove("hidden");document.querySelectorAll(".nav-btn").forEach(b=>b.classList.remove("active"));const btn=document.querySelector(`.nav-btn[data-page="${key}"]`);if(btn)btn.classList.add("active");closeSidebar();if(key==="home")initHome();if(key==="manage")initManage();if(key==="plan")initPlan();if(key==="find")initFind();if(key==="import")initImport()}
+document.querySelectorAll(".nav-btn").forEach(btn=>{btn.addEventListener("click",()=>navigate(btn.dataset.page))});
+function showPage(id){allPages.forEach(p=>document.getElementById(p).classList.add("hidden"));document.getElementById(id).classList.remove("hidden")}
+
+/* ══════════ COUNTS ══════════ */
+function updateCounts(){const n=recipes.length;document.getElementById("sidebarCount").textContent=`${n} ${n===1?"recipe":"recipes"} saved`;const h=document.getElementById("homeCount");if(h)h.textContent=n}
+updateCounts();
+
+/* ══════════ HOME ══════════ */
+function initHome(){updateCounts()}
+
+/* ══════════ ADD ══════════ */
+function clearAddForm(){document.getElementById("addTitle").value="";document.getElementById("addIngredients").value="";document.getElementById("addTitle").focus()}
+function saveNewRecipe(){const t=document.getElementById("addTitle").value.trim();const ing=document.getElementById("addIngredients").value.split("\n").map(s=>s.trim()).filter(Boolean);if(!t)return alert("Please enter a recipe title.");if(!ing.length)return alert("Please enter at least one ingredient.");recipes.push({title:t,ingredients:ing});saveRecipes(recipes);alert(`"${t}" has been added to the Recipe Book.`);clearAddForm();navigate("manage")}
+
+/* ══════════ MANAGE ══════════ */
+function initManage(){const e=document.getElementById("manageEmpty"),ed=document.getElementById("manageEditor");if(recipes.length===0){e.classList.remove("hidden");ed.classList.add("hidden");return}e.classList.add("hidden");ed.classList.remove("hidden");buildRecipeList();selectRecipe(0)}
+function buildRecipeList(){const ul=document.getElementById("recipeList");ul.innerHTML="";recipes.forEach((r,i)=>{const li=document.createElement("li");li.textContent=r.title;li.dataset.index=i;li.addEventListener("click",()=>selectRecipe(i));ul.appendChild(li)})}
+function selectRecipe(i){if(i<0||i>=recipes.length)return;selectedRecipeIndex=i;const r=recipes[i];document.getElementById("editTitle").value=r.title;document.getElementById("editIngredients").value=r.ingredients.join("\n");document.getElementById("editStatus").textContent=`Editing: ${r.title}`;document.getElementById("editStatus").style.color="var(--success)";document.querySelectorAll("#recipeList li").forEach(li=>{li.classList.toggle("active",Number(li.dataset.index)===i)})}
+function saveRecipeEdits(){if(selectedRecipeIndex<0)return alert("Please select a recipe to edit.");const t=document.getElementById("editTitle").value.trim();const ing=document.getElementById("editIngredients").value.split("\n").map(s=>s.trim()).filter(Boolean);if(!t)return alert("Please enter a recipe title.");if(!ing.length)return alert("Please enter at least one ingredient.");recipes[selectedRecipeIndex]={title:t,ingredients:ing};saveRecipes(recipes);buildRecipeList();selectRecipe(selectedRecipeIndex);document.getElementById("editStatus").textContent=`Saved changes to: ${t}`;document.getElementById("editStatus").style.color="var(--success)";alert(`"${t}" was updated successfully.`)}
+function deleteRecipe(){if(selectedRecipeIndex<0)return alert("Please select a recipe to delete.");const t=recipes[selectedRecipeIndex].title;if(!confirm(`Are you sure you want to delete "${t}" from the Recipe Book?`))return;recipes.splice(selectedRecipeIndex,1);saveRecipes(recipes);selectedRecipeIndex=-1;initManage();alert(`"${t}" was deleted successfully.`)}
+
+/* ══════════ PLAN ══════════ */
+function initPlan(){const e=document.getElementById("planEmpty"),s=document.getElementById("planSettings");document.getElementById("planHelper").classList.add("hidden");if(recipes.length===0){e.classList.remove("hidden");s.classList.add("hidden")}else{e.classList.add("hidden");s.classList.remove("hidden")}}
+function generatePlan(){const v=parseInt(document.getElementById("mealCount").value,10),h=document.getElementById("planHelper");if(isNaN(v)||v<=0){h.textContent="Please enter a whole number greater than 0.";h.classList.remove("hidden");return}h.classList.add("hidden");lastRequestedCount=v;buildCandidatePlan(v)}
+function shuffleAndPick(c){const a=recipes.length,p=Math.min(c,a),s=[...recipes].sort(()=>Math.random()-.5);return{chosen:s.slice(0,p),short:c>a}}
+function buildCandidatePlan(req){const{chosen,short}=shuffleAndPick(req);currentPlan=chosen;showPage("page-plan-review");document.querySelectorAll(".nav-btn").forEach(b=>b.classList.remove("active"));document.querySelector('.nav-btn[data-page="plan"]').classList.add("active");const w=document.getElementById("planWarning");if(short){w.textContent="Not Enough Recipes in the Recipe Book!";w.classList.remove("hidden")}else w.classList.add("hidden");const ol=document.getElementById("planTitles");ol.innerHTML="";currentPlan.forEach(r=>{const li=document.createElement("li");li.textContent=r.title;ol.appendChild(li)})}
+function regeneratePlan(){buildCandidatePlan(lastRequestedCount)}
+function formatMealPlanText(){let l=["Meal Plan","=".repeat(40),""];currentPlan.forEach((r,i)=>{l.push(`${i+1}. ${r.title}`);r.ingredients.forEach(g=>l.push(`   - ${g}`));l.push("")});return l.join("\n").trimEnd()+"\n"}
+function confirmPlan(){showPage("page-plan-full");document.querySelectorAll(".nav-btn").forEach(b=>b.classList.remove("active"));document.querySelector('.nav-btn[data-page="plan"]').classList.add("active");document.getElementById("planOutput").value=formatMealPlanText()}
+
+/* ══════════ PDF EXPORT ══════════ */
+function exportPDF(){const{jsPDF}=window.jspdf;const doc=new jsPDF({unit:"pt",format:"letter"});const lines=formatMealPlanText().split("\n");const mL=54,mT=54,mB=54,pH=doc.internal.pageSize.getHeight(),lH=16;doc.setFont("courier","normal");doc.setFontSize(11);let y=mT;lines.forEach(line=>{if(y+lH>pH-mB){doc.addPage();y=mT}doc.text(line,mL,y);y+=lH});doc.save("meal_plan.pdf")}
+
+/* ══════════ FIND DINNER ══════════ */
+let findTags=[];
+function initFind(){const e=document.getElementById("findEmpty"),u=document.getElementById("findUI");if(recipes.length===0){e.classList.remove("hidden");u.classList.add("hidden")}else{e.classList.add("hidden");u.classList.remove("hidden")}clearFindTags()}
+document.getElementById("findInput").addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault();addFindTag()}});
+function addFindTag(){const inp=document.getElementById("findInput");const v=inp.value.trim().toLowerCase();if(!v)return;if(findTags.length>=2)return;if(findTags.includes(v)){inp.value="";return}findTags.push(v);inp.value="";renderFindTags();runFind()}
+function removeFindTag(i){findTags.splice(i,1);renderFindTags();runFind()}
+function clearFindTags(){findTags=[];renderFindTags();document.getElementById("findResults").innerHTML="";document.getElementById("findResultsHeader").classList.add("hidden");document.getElementById("findInput").value=""}
+function renderFindTags(){const c=document.getElementById("findTags"),lm=document.getElementById("findLimitMsg"),inp=document.getElementById("findInput"),ab=document.getElementById("findAddBtn");c.innerHTML="";findTags.forEach((tag,i)=>{const s=document.createElement("span");s.className="ingredient-tag";s.innerHTML=`${tag}<span class="remove-tag" onclick="removeFindTag(${i})">&times;</span>`;c.appendChild(s)});if(findTags.length>=2){lm.classList.remove("hidden");inp.disabled=true;ab.disabled=true}else{lm.classList.add("hidden");inp.disabled=false;ab.disabled=false}}
+function runFind(){const rD=document.getElementById("findResults"),hD=document.getElementById("findResultsHeader"),cS=document.getElementById("findResultsCount");rD.innerHTML="";if(findTags.length===0){hD.classList.add("hidden");return}const scored=recipes.map(r=>{const lo=r.ingredients.map(i=>i.toLowerCase());let matched=[];findTags.forEach(tag=>{if(lo.some(ing=>ing.includes(tag)))matched.push(tag)});return{recipe:r,matched,score:matched.length}}).filter(s=>s.score>0);scored.sort((a,b)=>b.score!==a.score?b.score-a.score:a.recipe.title.localeCompare(b.recipe.title));hD.classList.remove("hidden");if(scored.length===0){cS.textContent="No matching recipes found";rD.innerHTML=`<div class="no-results-msg">None of your saved recipes contain the ingredient${findTags.length>1?"s":""} you entered.<br>Try a different keyword or add more recipes.</div>`;return}cS.textContent=`${scored.length} matching ${scored.length===1?"recipe":"recipes"}`;scored.forEach(({recipe,matched,score})=>{const card=document.createElement("div");card.className="match-card";const t=document.createElement("div");t.className="match-card-title";t.textContent=recipe.title;card.appendChild(t);const badges=document.createElement("div");badges.className="match-badges";if(findTags.length>1&&score===findTags.length){const b=document.createElement("span");b.className="match-badge full";b.textContent="Matches all ingredients";badges.appendChild(b)}matched.forEach(tag=>{const b=document.createElement("span");b.className="match-badge";b.textContent=`Contains: ${tag}`;badges.appendChild(b)});card.appendChild(badges);const ul=document.createElement("ul");ul.className="match-ingredients";recipe.ingredients.forEach(ing=>{const li=document.createElement("li");li.textContent=`- ${ing}`;if(matched.some(tag=>ing.toLowerCase().includes(tag)))li.classList.add("highlight");ul.appendChild(li)});card.appendChild(ul);rD.appendChild(card)})}
+
+/* ══════════ IMPORT PDF ══════════ */
+let parsedImportRecipes=[];
+pdfjsLib.GlobalWorkerOptions.workerSrc="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+
+function initImport(){importReset()}
+function importReset(){parsedImportRecipes=[];document.getElementById("importStep1").classList.remove("hidden");document.getElementById("importStep2").classList.add("hidden");document.getElementById("importStep3").classList.add("hidden");document.getElementById("importError").classList.add("hidden");document.getElementById("importLoading").classList.add("hidden");document.getElementById("pdfFileInput").value=""}
+
+const dropZone=document.getElementById("dropZone"),pdfInput=document.getElementById("pdfFileInput");
+dropZone.addEventListener("click",()=>pdfInput.click());
+dropZone.addEventListener("dragover",e=>{e.preventDefault();dropZone.classList.add("dragover")});
+dropZone.addEventListener("dragleave",()=>dropZone.classList.remove("dragover"));
+dropZone.addEventListener("drop",e=>{e.preventDefault();dropZone.classList.remove("dragover");if(e.dataTransfer.files.length>0)handlePDFFile(e.dataTransfer.files[0])});
+pdfInput.addEventListener("change",()=>{if(pdfInput.files.length>0)handlePDFFile(pdfInput.files[0])});
+
+/* ── FIXED: Reconstruct visual lines from pdf.js text items using
+     Y-coordinate grouping so multi-word titles like "Stuffed Shells"
+     are not split across lines ── */
+async function handlePDFFile(file){
+  const errEl=document.getElementById("importError"),loadEl=document.getElementById("importLoading");
+  errEl.classList.add("hidden");
+  if(file.type&&file.type!=="application/pdf"&&!file.name.toLowerCase().endsWith(".pdf")){errEl.textContent="Please select a valid PDF file.";errEl.classList.remove("hidden");return}
+  loadEl.classList.remove("hidden");
+  try{
+    const arrayBuffer=await file.arrayBuffer();
+    const pdf=await pdfjsLib.getDocument({data:arrayBuffer}).promise;
+    let fullText="";
+
+    for(let p=1;p<=pdf.numPages;p++){
+      const page=await pdf.getPage(p);
+      const content=await page.getTextContent();
+
+      /* Filter out empty text items */
+      const items=content.items.filter(it=>it.str.trim().length>0);
+      if(items.length===0) continue;
+
+      /* Sort items: top-to-bottom (higher Y first), then left-to-right.
+         pdf.js transform[5] = Y position, transform[4] = X position. */
+      items.sort((a,b)=>{
+        const yDiff=b.transform[5]-a.transform[5];
+        if(Math.abs(yDiff)>2) return yDiff;
+        return a.transform[4]-b.transform[4];
+      });
+
+      /* Group items that share the same Y-coordinate into a single
+         visual line, joining them with a space instead of a newline.
+         A tolerance of 2pt accounts for minor vertical offsets. */
+      const lines=[];
+      let curY=items[0].transform[5];
+      let parts=[items[0].str];
+
+      for(let i=1;i<items.length;i++){
+        const itemY=items[i].transform[5];
+        if(Math.abs(itemY-curY)<=2){
+          parts.push(items[i].str);
+        } else {
+          lines.push(parts.join(" "));
+          curY=itemY;
+          parts=[items[i].str];
+        }
+      }
+      lines.push(parts.join(" "));
+      fullText+=lines.join("\n")+"\n";
+    }
+
+    const parsed=parseMealPlanText(fullText);
+    if(parsed.length===0){errEl.textContent="No recipes could be found in this PDF. Make sure it is a meal plan exported by this app.";errEl.classList.remove("hidden");loadEl.classList.add("hidden");return}
+    parsedImportRecipes=parsed;loadEl.classList.add("hidden");showImportReview();
+  }catch(ex){errEl.textContent=`Failed to read the PDF: ${ex.message||ex}`;errEl.classList.remove("hidden");loadEl.classList.add("hidden")}
+}
+
+function parseMealPlanText(text){
+  const lines=text.split("\n");const rp=[];let current=null;
+  for(let raw of lines){
+    const line=raw.trim();if(!line)continue;
+    if(/^meal\s*plan$/i.test(line))continue;
+    if(/^=+$/.test(line))continue;
+    const titleMatch=line.match(/^\d+\.\s+(.+)$/);
+    if(titleMatch){if(current&&current.title)rp.push(current);current={title:titleMatch[1].trim(),ingredients:[]};continue}
+    const ingMatch=line.match(/^-\s+(.+)$/);
+    if(ingMatch&&current){current.ingredients.push(ingMatch[1].trim());continue}
+    if(current&&line.length>0&&!titleMatch){if(current.ingredients.length>0||line.startsWith("-")){current.ingredients.push(line.replace(/^-\s*/,"").trim())}}
+  }
+  if(current&&current.title)rp.push(current);
+  return rp.filter(r=>r.title&&r.ingredients.length>0);
+}
+
+function showImportReview(){
+  document.getElementById("importStep1").classList.add("hidden");document.getElementById("importStep2").classList.remove("hidden");
+  const existingTitles=new Set(recipes.map(r=>r.title.toLowerCase().trim()));let dupCount=0;
+  parsedImportRecipes.forEach(r=>{r._checked=true;r._isDuplicate=existingTitles.has(r.title.toLowerCase().trim());if(r._isDuplicate)dupCount++});
+  const summaryEl=document.getElementById("importSummary");summaryEl.innerHTML="";
+  [{val:parsedImportRecipes.length,label:"Recipes found"},{val:dupCount,label:"Already in book"},{val:parsedImportRecipes.length-dupCount,label:"New recipes"}].forEach(s=>{const d=document.createElement("div");d.className="import-stat";d.innerHTML=`<div class="is-val">${s.val}</div><div class="is-label">${s.label}</div>`;summaryEl.appendChild(d)});
+  renderImportRecipeCards();
+}
+
+function renderImportRecipeCards(){
+  const container=document.getElementById("importRecipesList");container.innerHTML="";
+  parsedImportRecipes.forEach((r,idx)=>{
+    const card=document.createElement("div");card.className="import-recipe-card"+(r._checked?"":" skipped");card.id=`irc-${idx}`;
+    const cb=document.createElement("input");cb.type="checkbox";cb.className="irc-checkbox";cb.checked=r._checked;
+    cb.addEventListener("change",()=>{r._checked=cb.checked;card.classList.toggle("skipped",!cb.checked)});
+    const body=document.createElement("div");body.className="irc-body";
+    const titleEl=document.createElement("div");titleEl.className="irc-title";titleEl.textContent=r.title;
+    if(r._isDuplicate){const dup=document.createElement("span");dup.className="irc-dup";dup.textContent="Duplicate";titleEl.appendChild(dup)}
+    body.appendChild(titleEl);
+    const ul=document.createElement("ul");ul.className="irc-ingredients";r.ingredients.forEach(ing=>{const li=document.createElement("li");li.textContent=`- ${ing}`;ul.appendChild(li)});body.appendChild(ul);
+    card.appendChild(cb);card.appendChild(body);container.appendChild(card);
+  });
+}
+
+function importToggleAll(state){parsedImportRecipes.forEach((r,idx)=>{r._checked=state;const card=document.getElementById(`irc-${idx}`);if(card){card.classList.toggle("skipped",!state);const cb=card.querySelector(".irc-checkbox");if(cb)cb.checked=state}})}
+
+function importConfirm(){
+  const toAdd=parsedImportRecipes.filter(r=>r._checked);
+  if(toAdd.length===0)return alert("No recipes are selected. Check at least one recipe to import.");
+  toAdd.forEach(r=>{recipes.push({title:r.title,ingredients:[...r.ingredients]})});saveRecipes(recipes);
+  document.getElementById("importStep2").classList.add("hidden");document.getElementById("importStep3").classList.remove("hidden");
+  document.getElementById("importDoneMsg").textContent=`${toAdd.length} recipe${toAdd.length===1?"":"s"} imported successfully!`;
+  const skipped=parsedImportRecipes.length-toAdd.length;
+  document.getElementById("importDoneDetail").textContent=skipped>0?`${skipped} recipe${skipped===1?" was":"s were"} skipped.`:"All parsed recipes were added to your recipe book.";
+}
+
+/* ══════════ INIT ══════════ */
+navigate("home");
+</script>
+</body>
+</html>
